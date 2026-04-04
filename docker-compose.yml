@@ -1,0 +1,35 @@
+# =============================================================
+# AUTO SGI — docker-compose para TESTES LOCAIS
+#
+# USO:
+#   1. Copie .env.example para .env e preencha as credenciais
+#   2. docker compose up --build
+#   3. Acesse http://localhost:8000/health
+#   4. Docs interativos: http://localhost:8000/docs
+#
+# NOTA: Este arquivo é para desenvolvimento local.
+#       Na VPS/EasyPanel o deploy é feito via Dockerfile diretamente.
+# =============================================================
+
+services:
+  auto-sgi-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: auto-sgi-api
+    ports:
+      # Expõe localmente para testes com curl/Postman
+      # Na VPS, remova este mapeamento — acesso só via rede interna
+      - "8000:8000"
+    env_file:
+      - .env
+    volumes:
+      # Dados persistentes: arquivos DOCX, XLSX e controle
+      - ./data_local:/data
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s

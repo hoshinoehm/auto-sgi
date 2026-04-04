@@ -1,0 +1,42 @@
+# Credenciais — NUNCA entram na imagem
+.env
+*.env
+
+# Scripts manuais originais (não precisam ir para o container)
+sgi_criar_nota.py
+sgi_anexos_por_nota.py
+lote_para_automacao.csv
+
+# Pastas de escalas históricas (dados locais)
+escalas/
+ajustar escala/
+
+# Arquivos de dados locais
+*.docx
+*.xlsx
+data_local/
+data/
+
+# Python
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+*.egg-info/
+dist/
+build/
+.eggs/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Git
+.git/
+.gitignore
+
+# Documentação e extras
+*.md
