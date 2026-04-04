@@ -54,6 +54,9 @@ def fechar_modal_boas_vindas(driver):
 
 
 def fazer_login(driver, usuario: str, senha: str):
+    import os
+    from pathlib import Path
+
     wait = WebDriverWait(driver, DEFAULT_TIMEOUT)
     print("[3] Preenchendo usuário e senha...")
 
@@ -71,8 +74,32 @@ def fazer_login(driver, usuario: str, senha: str):
     print("[3.1] Aguardando sistema carregar após login...")
 
     time.sleep(2)
-    wait.until(lambda d: "Login" not in d.current_url)
-    print("[4] Login concluído. URL:", driver.current_url)
+
+    try:
+        wait.until(lambda d: "Login" not in d.current_url)
+        print("[4] Login concluído. URL:", driver.current_url)
+    except TimeoutException:
+        # Salva screenshot para diagnóstico
+        data_dir = Path(os.environ.get("DATA_DIR", "/data"))
+        screenshot_path = data_dir / "logs" / "login_falhou.png"
+        screenshot_path.parent.mkdir(parents=True, exist_ok=True)
+        driver.save_screenshot(str(screenshot_path))
+
+        # Tenta capturar mensagem de erro visível na página
+        try:
+            erros = driver.find_elements("css selector", ".alert, .alert-danger, .msg-erro, [class*='erro'], [class*='error']")
+            msgs = [e.text.strip() for e in erros if e.text.strip()]
+            if msgs:
+                print(f"[ERRO LOGIN] Mensagem na página: {msgs}")
+        except Exception:
+            pass
+
+        print(f"[ERRO LOGIN] URL ainda é: {driver.current_url}")
+        print(f"[DIAGNÓSTICO] Screenshot salvo em: {screenshot_path}")
+        raise TimeoutException(
+            f"Login não redirecionou. Verifique as credenciais SGI_USUARIO/SGI_SENHA "
+            f"ou acesse o screenshot em {screenshot_path}"
+        )
 
 
 def aceitar_alertas_se_existirem(driver, timeout_total=6, intervalo=0.3):
