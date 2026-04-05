@@ -212,9 +212,36 @@ def _preencher_registro(driver, dados: Dict, indice: int, total: int):
 # Função pública
 # ---------------------------------------------------------------------------
 
+def _anexar_um_registro(nota_id: str, dados: Dict, idx: int, total: int,
+                         usuario: str, senha: str) -> str | None:
+    """
+    Abre um Chrome, loga, anexa UM registro e fecha o Chrome.
+    Retorna None em caso de sucesso, ou mensagem de erro.
+    """
+    driver = criar_driver()
+    try:
+        login_completo(driver, usuario, senha)
+
+        if not _ir_para_anexos(driver, nota_id):
+            return "Falha ao navegar para página de anexos"
+
+        _preencher_registro(driver, dados, idx, total)
+        return None
+    except Exception as e:
+        return str(e)
+    finally:
+        try:
+            driver.quit()
+        except Exception:
+            pass
+        time.sleep(1)  # pausa entre registros para liberar recursos
+
+
 def anexar_lote(nota_id: str, xlsx_path: str, usuario: str, senha: str) -> Dict:
     """
     Anexa todos os registros de um XLSX a uma nota específica no SGI.
+    Cada registro usa um Chrome próprio (cria → usa → destrói) para
+    evitar crashes de memória em sessões longas.
 
     Retorna:
       {
@@ -238,33 +265,18 @@ def anexar_lote(nota_id: str, xlsx_path: str, usuario: str, senha: str) -> Dict:
     sucesso = 0
     falhas = []
 
-    driver = criar_driver()
-    try:
-        login_completo(driver, usuario, senha)
-
-        for idx, dados in enumerate(registros, start=1):
-            print(f"\n--- Registro {idx}/{total} ---")
-
-            if not _ir_para_anexos(driver, nota_id):
-                falhas.append({
-                    "indice": idx,
-                    "matricula": dados.get("matricula", ""),
-                    "erro": "Falha ao navegar para página de anexos",
-                })
-                continue
-
-            try:
-                _preencher_registro(driver, dados, idx, total)
-                sucesso += 1
-            except Exception as e:
-                print(f"[ERRO] Registro {idx}: {e}")
-                falhas.append({
-                    "indice": idx,
-                    "matricula": dados.get("matricula", ""),
-                    "erro": str(e),
-                })
-    finally:
-        driver.quit()
+    for idx, dados in enumerate(registros, start=1):
+        print(f"\n--- Registro {idx}/{total} ---")
+        erro = _anexar_um_registro(nota_id, dados, idx, total, usuario, senha)
+        if erro:
+            print(f"[ERRO] Registro {idx}: {erro}")
+            falhas.append({
+                "indice": idx,
+                "matricula": dados.get("matricula", ""),
+                "erro": erro,
+            })
+        else:
+            sucesso += 1
 
     return {
         "nota_id": nota_id,
