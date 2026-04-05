@@ -364,7 +364,7 @@ async def endpoint_registrar_notas(payload: RegistrarNotasPayload):
 
 
 @app.post("/anexar-lote", tags=["SGI"], dependencies=[Depends(verificar_api_key)])
-async def endpoint_anexar_lote(payload: AnexarLotePayload):
+async def endpoint_anexar_lote(payload: AnexarLotePayload = AnexarLotePayload()):
     """
     Lê o controle.xlsx e para cada linha com status NOTA_CRIADA (ou ERRO, para retry),
     faz a anexação dos registros da escala na nota correspondente no SGI.
