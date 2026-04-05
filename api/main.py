@@ -82,7 +82,8 @@ class ItemNota(BaseModel):
 
 
 class CriarNotasPayload(BaseModel):
-    itens: List[ItemNota]
+    itens: Optional[List[ItemNota]] = None  # se omitido, lê PENDENTE do controle.xlsx
+    data: Optional[str] = None              # filtro opcional por data (dd/mm/yyyy)
 
 
 class MontarControlePayload(BaseModel):
@@ -149,18 +150,38 @@ async def endpoint_extrair_escala(arquivo: UploadFile = File(...)):
 
 
 @app.post("/criar-notas", tags=["SGI"], dependencies=[Depends(verificar_api_key)])
-async def endpoint_criar_notas(payload: CriarNotasPayload):
+async def endpoint_criar_notas(payload: CriarNotasPayload = CriarNotasPayload()):
     """
-    Cria notas no SGI para cada item da lista.
-    Cada item: { modo, data, data_fim (opcional) }
+    Cria notas no SGI.
 
-    A idempotência é garantida pelo controle.xlsx:
-    se já existe uma linha NOTA_CRIADA ou CONCLUIDO para a mesma (data, tipo_nota),
-    o item é pulado e o numero_nota já existente é retornado.
+    Sem payload: lê automaticamente todas as linhas PENDENTE do controle.xlsx.
+    Com payload.itens: usa a lista fornecida (modo legado).
+    Com payload.data: filtra pelo campo data (dd/mm/yyyy).
+
+    Após criar cada nota, atualiza o controle.xlsx com numero_nota e status NOTA_CRIADA.
+    Idempotente: pula linhas que já estão em NOTA_CRIADA ou CONCLUIDO.
     """
     usuario, senha = _sgi_creds()
 
-    itens = [item.model_dump() for item in payload.itens]
+    if payload.itens:
+        # Modo legado: itens passados manualmente
+        itens = [item.model_dump() for item in payload.itens]
+    else:
+        # Modo automático: lê PENDENTE do controle.xlsx
+        pendentes = controle_db.buscar(data=payload.data, status_list=["PENDENTE"])
+        if not pendentes:
+            return {
+                "success": True,
+                "message": "Nenhuma linha PENDENTE no controle",
+                "total": 0,
+                "criadas": 0,
+                "notas": [],
+                "timestamp": datetime.now().isoformat(),
+            }
+        itens = [
+            {"modo": l["tipo_nota"], "data": l["data"]}
+            for l in pendentes
+        ]
 
     # Filtra itens já processados (idempotência)
     itens_a_criar = []
