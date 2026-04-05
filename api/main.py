@@ -91,6 +91,18 @@ class MontarControlePayload(BaseModel):
     arquivo_saida: Optional[str] = None  # padrão: DATA_DIR/controle/controle.xlsx
 
 
+class ItemRegistroNota(BaseModel):
+    data: str
+    tipo_nota: str
+    numero_nota: str
+    dia: Optional[str] = ""
+    arquivo_escala: Optional[str] = ""
+
+
+class RegistrarNotasPayload(BaseModel):
+    itens: List[ItemRegistroNota]
+
+
 class AnexarLotePayload(BaseModel):
     data: Optional[str] = None
     status_filtro: Optional[List[str]] = None
@@ -292,6 +304,61 @@ async def endpoint_montar_controle(payload: MontarControlePayload = MontarContro
         "arquivos_encontrados": len(novas),
         "linhas_adicionadas": adicionadas,
         "linhas_ignoradas": len(novas) - adicionadas,
+        "timestamp": datetime.now().isoformat(),
+    }
+
+
+@app.post("/registrar-notas", tags=["controle"], dependencies=[Depends(verificar_api_key)])
+async def endpoint_registrar_notas(payload: RegistrarNotasPayload):
+    """
+    Registra números de notas já criadas no SGI diretamente no controle.xlsx.
+    Útil para notas criadas fora do fluxo automático.
+
+    Para cada item:
+    - Se a linha (data, tipo_nota) já existe → atualiza numero_nota e status para NOTA_CRIADA
+    - Se não existe → adiciona a linha com status NOTA_CRIADA
+
+    Payload:
+      { "itens": [{"data": "dd/mm/yyyy", "tipo_nota": "administrativo", "numero_nota": "..."}] }
+    """
+    atualizadas = 0
+    adicionadas = 0
+
+    for item in payload.itens:
+        existentes = controle_db.buscar(data=item.data, status_list=None)
+        linha_existente = next(
+            (l for l in existentes if l.get("tipo_nota") == item.tipo_nota), None
+        )
+
+        if linha_existente:
+            controle_db.marcar_status(
+                data=item.data,
+                tipo_nota=item.tipo_nota,
+                status="NOTA_CRIADA",
+                numero_nota=item.numero_nota,
+            )
+            atualizadas += 1
+            print(f"[REGISTRAR] Atualizado: {item.data} / {item.tipo_nota} → {item.numero_nota}")
+        else:
+            nova = {
+                "data": item.data,
+                "dia": item.dia or "",
+                "tipo_nota": item.tipo_nota,
+                "numero_nota": item.numero_nota,
+                "arquivo_escala": item.arquivo_escala or "",
+                "status": "NOTA_CRIADA",
+                "observacao": "",
+                "processado_em": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+            }
+            controle_db.adicionar_linhas([nova])
+            adicionadas += 1
+            print(f"[REGISTRAR] Adicionado: {item.data} / {item.tipo_nota} → {item.numero_nota}")
+
+    return {
+        "success": True,
+        "atualizadas": atualizadas,
+        "adicionadas": adicionadas,
+        "total": atualizadas + adicionadas,
         "timestamp": datetime.now().isoformat(),
     }
 
