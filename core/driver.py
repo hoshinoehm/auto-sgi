@@ -25,13 +25,24 @@ def criar_driver() -> webdriver.Chrome:
     if headless:
         options.add_argument("--headless=new")
 
+    # Segurança / sandbox
     options.add_argument("--no-sandbox")
-    options.add_argument("--disable-dev-shm-usage")
-    options.add_argument("--disable-gpu")
-    options.add_argument("--window-size=1920,1080")
-    options.add_argument("--disable-extensions")
+    options.add_argument("--disable-dev-shm-usage")  # usa /tmp em vez de /dev/shm (evita crash por falta de memória compartilhada)
 
-    # Evita que o SGI detecte o Chromium como bot/automação
+    # Redução de uso de memória
+    options.add_argument("--disable-gpu")
+    options.add_argument("--disable-software-rasterizer")
+    options.add_argument("--window-size=1366,768")       # menor que 1920x1080 usa menos VRAM
+    options.add_argument("--disable-extensions")
+    options.add_argument("--disable-background-networking")
+    options.add_argument("--disable-sync")
+    options.add_argument("--disable-translate")
+    options.add_argument("--disable-features=TranslateUI,BlinkGenPropertyTrees")
+    options.add_argument("--disable-renderer-backgrounding")
+    options.add_argument("--renderer-process-limit=1")
+    options.add_argument("--single-process")             # um único processo Chrome — menos RAM, suficiente para automação sequencial
+
+    # Evita que o SGI detecte o Chromium como bot
     options.add_argument("--disable-blink-features=AutomationControlled")
     options.add_argument(
         "user-agent=Mozilla/5.0 (Windows NT 10.0; Win64; x64) "

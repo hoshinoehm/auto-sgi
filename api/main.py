@@ -29,6 +29,7 @@ import api.controle as controle_db
 from core.extrair_escala import extrair_arquivo
 from core.criar_nota import criar_notas
 from core.anexos import anexar_lote
+from core.montar_controle import montar_controle_a_partir_da_pasta
 
 # ---------------------------------------------------------------------------
 # Inicialização
@@ -84,17 +85,9 @@ class CriarNotasPayload(BaseModel):
     itens: List[ItemNota]
 
 
-class ItemControle(BaseModel):
-    data: str
-    dia: str
-    tipo_nota: str
-    arquivo_escala: str
-    numero_nota: Optional[str] = ""
-    status: Optional[str] = "PENDENTE"
-
-
 class MontarControlePayload(BaseModel):
-    itens: List[ItemControle]
+    pasta: Optional[str] = None          # padrão: DATA_DIR/extraidas
+    arquivo_saida: Optional[str] = None  # padrão: DATA_DIR/controle/controle.xlsx
 
 
 class AnexarLotePayload(BaseModel):
@@ -233,30 +226,49 @@ async def endpoint_criar_notas(payload: CriarNotasPayload):
 
 
 @app.post("/montar-controle", tags=["controle"], dependencies=[Depends(verificar_api_key)])
-async def endpoint_montar_controle(payload: MontarControlePayload):
+async def endpoint_montar_controle(payload: MontarControlePayload = MontarControlePayload()):
     """
-    Adiciona linhas ao controle.xlsx.
-    Útil após a extração do DOCX, para registrar os arquivos gerados
-    antes de criar as notas no SGI.
+    Varre a pasta de escalas extraídas, identifica os XLSX pelo padrão de nome
+    e popula o controle.xlsx com as linhas encontradas.
+
+    Padrões de nome reconhecidos:
+      ESCALA - DD.MM.YYYY - DIA_ADM_EXTRAIDA.xlsx  → administrativo
+      ESCALA - DD.MM.YYYY - DIA_EXTRAIDA.xlsx       → operacional
+
     Idempotente: não duplica linhas com mesma (data, tipo_nota).
+
+    Payload opcional:
+      { "pasta": "/data/extraidas", "arquivo_saida": "/data/controle/controle.xlsx" }
     """
-    novas = []
-    for item in payload.itens:
-        novas.append({
-            "data": item.data,
-            "dia": item.dia,
-            "tipo_nota": item.tipo_nota,
-            "numero_nota": item.numero_nota or "",
-            "arquivo_escala": item.arquivo_escala,
-            "status": item.status or "PENDENTE",
-            "observacao": "",
-            "processado_em": "",
-        })
+    pasta = Path(payload.pasta) if payload.pasta else EXTRAIDAS_DIR
+
+    try:
+        novas = montar_controle_a_partir_da_pasta(pasta)
+    except FileNotFoundError as e:
+        raise HTTPException(status_code=404, detail=str(e))
+    except Exception as e:
+        return _erro(
+            etapa="montar_controle",
+            mensagem="Falha ao varrer a pasta de escalas",
+            detalhe=str(e),
+        )
+
+    if not novas:
+        return {
+            "success": True,
+            "message": "Nenhum arquivo com padrão reconhecido encontrado na pasta",
+            "pasta": str(pasta),
+            "linhas_adicionadas": 0,
+            "linhas_ignoradas": 0,
+            "timestamp": datetime.now().isoformat(),
+        }
 
     adicionadas = controle_db.adicionar_linhas(novas)
 
     return {
         "success": True,
+        "pasta": str(pasta),
+        "arquivos_encontrados": len(novas),
         "linhas_adicionadas": adicionadas,
         "linhas_ignoradas": len(novas) - adicionadas,
         "timestamp": datetime.now().isoformat(),
