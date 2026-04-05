@@ -27,6 +27,7 @@ def criar_driver() -> webdriver.Chrome:
 
     # Segurança / sandbox
     options.add_argument("--no-sandbox")
+    options.add_argument("--no-zygote")               # evita crash do processo zygote em containers Docker
     options.add_argument("--disable-dev-shm-usage")  # usa /tmp em vez de /dev/shm (evita crash por falta de memória compartilhada)
 
     # Redução de uso de memória

@@ -16,6 +16,7 @@ Variáveis de ambiente necessárias:
 """
 import os
 import traceback
+import multiprocessing
 from datetime import datetime
 from pathlib import Path
 from typing import List, Optional
@@ -55,6 +56,16 @@ def _sgi_creds():
             detail="Credenciais SGI_USUARIO/SGI_SENHA não configuradas no servidor",
         )
     return usuario, senha
+
+
+def _run_selenium(func, *args):
+    """
+    Executa func(*args) em um processo filho isolado.
+    Se o Chrome crashar, apenas o processo filho morre — o uvicorn sobrevive.
+    """
+    ctx = multiprocessing.get_context("spawn")
+    with ctx.Pool(1) as pool:
+        return pool.apply(func, args)
 
 
 def _erro(etapa: str, mensagem: str, detalhe: str = "", retry_safe: bool = True):
@@ -222,7 +233,7 @@ async def endpoint_criar_notas(payload: CriarNotasPayload = CriarNotasPayload())
 
     if itens_a_criar:
         try:
-            novos = criar_notas(itens_a_criar, usuario, senha)
+            novos = _run_selenium(criar_notas, itens_a_criar, usuario, senha)
             resultados.extend(novos)
 
             for r in novos:
@@ -419,7 +430,7 @@ async def endpoint_anexar_lote(payload: AnexarLotePayload = AnexarLotePayload())
         controle_db.marcar_status(data, tipo, "ANEXANDO")
 
         try:
-            resultado = anexar_lote(nota_id, str(xlsx_path), usuario, senha)
+            resultado = _run_selenium(anexar_lote, nota_id, str(xlsx_path), usuario, senha)
 
             if resultado["falhas"]:
                 status_final = "ERRO"
