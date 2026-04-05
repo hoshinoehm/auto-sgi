@@ -40,7 +40,6 @@ def criar_driver() -> webdriver.Chrome:
     options.add_argument("--disable-features=TranslateUI,BlinkGenPropertyTrees")
     options.add_argument("--disable-renderer-backgrounding")
     options.add_argument("--renderer-process-limit=1")
-    options.add_argument("--single-process")             # um único processo Chrome — menos RAM, suficiente para automação sequencial
 
     # Evita que o SGI detecte o Chromium como bot
     options.add_argument("--disable-blink-features=AutomationControlled")
