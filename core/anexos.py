@@ -9,6 +9,7 @@ Função pública principal:
 import os
 import re
 import time
+import subprocess
 import unicodedata
 from pathlib import Path
 from typing import List, Dict
@@ -212,12 +213,23 @@ def _preencher_registro(driver, dados: Dict, indice: int, total: int):
 # Função pública
 # ---------------------------------------------------------------------------
 
+def _matar_chrome():
+    """Mata processos Chrome/Chromium órfãos antes de iniciar nova instância."""
+    try:
+        subprocess.run(["pkill", "-9", "-f", "chromium"], capture_output=True)
+        subprocess.run(["pkill", "-9", "-f", "chromedriver"], capture_output=True)
+        time.sleep(2)
+    except Exception:
+        pass
+
+
 def _anexar_um_registro(nota_id: str, dados: Dict, idx: int, total: int,
                          usuario: str, senha: str) -> str | None:
     """
     Abre um Chrome, loga, anexa UM registro e fecha o Chrome.
     Retorna None em caso de sucesso, ou mensagem de erro.
     """
+    _matar_chrome()
     driver = criar_driver()
     try:
         login_completo(driver, usuario, senha)
@@ -234,7 +246,7 @@ def _anexar_um_registro(nota_id: str, dados: Dict, idx: int, total: int,
             driver.quit()
         except Exception:
             pass
-        time.sleep(1)  # pausa entre registros para liberar recursos
+        time.sleep(3)  # pausa entre registros para liberar recursos
 
 
 def anexar_lote(nota_id: str, xlsx_path: str, usuario: str, senha: str) -> Dict:
