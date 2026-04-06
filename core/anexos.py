@@ -214,11 +214,13 @@ def _preencher_registro(driver, dados: Dict, indice: int, total: int):
 # ---------------------------------------------------------------------------
 
 def _matar_chrome():
-    """Mata processos Chrome/Chromium órfãos antes de iniciar nova instância."""
+    """Mata processos Chrome/Chromium órfãos e limpa arquivos temporários."""
     try:
         subprocess.run(["pkill", "-9", "-f", "chromium"], capture_output=True)
         subprocess.run(["pkill", "-9", "-f", "chromedriver"], capture_output=True)
         time.sleep(2)
+        # Remove arquivos temporários do Chrome que ficam em /tmp
+        subprocess.run(["bash", "-c", "rm -rf /tmp/.org.chromium* /tmp/chrome* /tmp/.com.google* 2>/dev/null"], capture_output=True)
     except Exception:
         pass
 

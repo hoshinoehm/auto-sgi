@@ -33,7 +33,7 @@ def criar_driver() -> webdriver.Chrome:
     # Redução de uso de memória
     options.add_argument("--disable-gpu")
     options.add_argument("--disable-software-rasterizer")
-    options.add_argument("--window-size=1366,768")       # menor que 1920x1080 usa menos VRAM
+    options.add_argument("--window-size=1366,768")
     options.add_argument("--disable-extensions")
     options.add_argument("--disable-background-networking")
     options.add_argument("--disable-sync")
@@ -41,6 +41,12 @@ def criar_driver() -> webdriver.Chrome:
     options.add_argument("--disable-features=TranslateUI,BlinkGenPropertyTrees")
     options.add_argument("--disable-renderer-backgrounding")
     options.add_argument("--renderer-process-limit=1")
+    options.add_argument("--disable-cache")
+    options.add_argument("--disk-cache-size=0")
+    options.add_argument("--media-cache-size=0")
+    options.add_argument("--aggressive-cache-discard")
+    options.add_argument("--disable-application-cache")
+    options.add_argument("--js-flags=--max-old-space-size=128")
 
     # Evita que o SGI detecte o Chromium como bot
     options.add_argument("--disable-blink-features=AutomationControlled")
