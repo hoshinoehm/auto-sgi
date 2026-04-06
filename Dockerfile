@@ -53,7 +53,7 @@ RUN mkdir -p /data/entradas /data/extraidas /data/controle /data/logs /data/resu
 EXPOSE 8000
 
 # --- Healthcheck (EasyPanel usa para saber se o container está ok) ---
-HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
+HEALTHCHECK --interval=60s --timeout=30s --start-period=30s --retries=10 \
     CMD curl -f http://localhost:8000/health || exit 1
 
 # --- Comando de inicialização ---
