@@ -101,11 +101,10 @@ def adicionar_linhas(novas: List[Dict]) -> int:
         chave_data = nova.get("data", "")
         chave_tipo = nova.get("tipo_nota", "")
 
-        # Verifica idempotência: já existe linha ativa para esta data+tipo?
+        # Verifica idempotência: já existe qualquer linha para esta data+tipo?
         ja_existe = any(
             l.get("data") == chave_data
             and l.get("tipo_nota") == chave_tipo
-            and l.get("status") not in STATUS_REPROCESSAR
             for l in existentes
         )
 
