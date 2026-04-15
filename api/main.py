@@ -95,6 +95,7 @@ class ItemNota(BaseModel):
 class CriarNotasPayload(BaseModel):
     itens: Optional[List[ItemNota]] = None  # se omitido, lê PENDENTE do controle.xlsx
     data: Optional[str] = None              # filtro opcional por data (dd/mm/yyyy)
+    limite: Optional[int] = None            # máximo de notas a criar por chamada
 
 
 class MontarControlePayload(BaseModel):
@@ -206,6 +207,9 @@ async def endpoint_criar_notas(payload: CriarNotasPayload = CriarNotasPayload())
             for l in pendentes
         ]
 
+    if payload.limite and len(itens) > payload.limite:
+        itens = itens[: payload.limite]
+
     # Filtra itens já processados (idempotência)
     itens_a_criar = []
     notas_ja_existentes = []
@@ -260,10 +264,12 @@ async def endpoint_criar_notas(payload: CriarNotasPayload = CriarNotasPayload())
             )
 
     ok = sum(1 for r in resultados if r.get("status") in ("OK", "JA_EXISTIA"))
+    pendentes_restantes = len(controle_db.buscar(data=payload.data, status_list=["PENDENTE"]))
     return {
         "success": True,
         "total": len(resultados),
         "criadas": ok,
+        "pendentes_restantes": pendentes_restantes,
         "notas": resultados,
         "timestamp": datetime.now().isoformat(),
     }
